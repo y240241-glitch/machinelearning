@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ゼロからのニューラルネットワーク</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #10101a;
+    --surface2: #16162a;
+    --border: #2a2a4a;
+    --gold: #f0c040;
+    --gold2: #c8962a;
+    --amber: #ff9820;
+    --cyan: #40e0d0;
+    --red: #ff4560;
+    --green: #00e396;
+    --text: #e8e4d4;
+    --muted: #7a7890;
+    --dim: #3a3860;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(240,192,64,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,192,64,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .header {
+    position: relative;
+    z-index: 1;
+    padding: 32px 40px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header-badge {
+    margin-left: auto;
+    background: var(--surface2);
+    border: 1px solid var(--gold2);
+    border-radius: 2px;
+    padding: 4px 12px;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .main {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 100px);
+  }
+
+  .panel {
+    background: var(--bg);
+    padding: 24px;
+    position: relative;
+  }
+  .panel-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Controls panel */
+  .controls-panel { grid-row: 1 / 4; }
+
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::before {
+    content: '▸';
+    color: var(--gold2);
+  }
+
+  label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+  input[type=range] {
+    width: 100%;
+    appearance: none;
+    background: var(--surface2);
+    height: 3px;
+    border-radius: 0;
+    margin-bottom: 2px;
+    border: 1px solid var(--dim);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--gold);
+    border-radius: 0;
+    cursor: pointer;
+    transform: rotate(45deg);
+  }
+  .slider-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+  .slider-val { font-weight: 700; }
+
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    appearance: none;
+    cursor: pointer;
+  }
+  select:focus { outline: 1px solid var(--gold); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    border-radius: 0;
+    transition: all 0.15s;
+    margin-bottom: 8px;
+  }
+  .btn-primary {
+    background: var(--gold);
+    color: var(--bg);
+  }
+  .btn-primary:hover { background: var(--amber); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+  .btn-primary.running {
+    background: var(--red);
+    color: #fff;
+    animation: pulse-btn 1s infinite;
+  }
+  @keyframes pulse-btn {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+
+  /* Math display */
+  .math-block {
+    background: var(--surface2);
+    border: 1px solid var(--dim);
+    border-left: 3px solid var(--gold2);
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--text);
+    margin-bottom: 10px;
+    line-height: 1.8;
+  }
+  .math-block .eq-label {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .math-sym { color: var(--gold); }
+  .math-fn { color: var(--cyan); }
+
+  /* Stat cards */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 10px;
+  }
+  .stat-name { font-size: 8px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .stat-val { font-size: 20px; font-weight: 700; color: var(--gold); margin-top: 2px; font-family: 'Playfair Display', serif; }
+  .stat-val.good { color: var(--green); }
+  .stat-val.bad { color: var(--red); }
+
+  /* Loss chart */
+  .chart-panel { position: relative; }
+  canvas { display: block; }
+  #lossCanvas {
+    width: 100%;
+    height: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    cursor: crosshair;
+  }
+  .chart-overlay {
+    position: absolute;
+    top: 40px;
+    left: 30px;
+    font-size: 9px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  /* Decision boundary */
+  #boundaryCanvas {
+    width: 100%;
+    height: 280px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  /* Weight heatmap */
+  #weightCanvas {
+    width: 100%;
+    height: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  /* Network viz */
+  #netCanvas {
+    width: 100%;
+    height: 280px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  /* Log */
+  .log {
+    height: 100px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 10px;
+    font-size: 10px;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+  .log::-webkit-scrollbar { width: 4px; }
+  .log::-webkit-scrollbar-track { background: var(--surface); }
+  .log::-webkit-scrollbar-thumb { background: var(--dim); }
+  .log-entry { display: flex; gap: 10px; }
+  .log-entry .ep { color: var(--dim); min-width: 60px; }
+  .log-entry .loss { color: var(--amber); }
+  .log-entry .acc { color: var(--green); }
+
+  /* Progress bar */
+  .progress-wrap {
+    height: 3px;
+    background: var(--surface2);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold2), var(--gold));
+    width: 0%;
+    transition: width 0.1s;
+  }
+
+  /* Annotation */
+  .annotation {
+    font-size: 9px;
+    color: var(--dim);
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* Bottom status bar */
+  .statusbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    padding: 6px 40px;
+    display: flex;
+    gap: 24px;
+    font-size: 9px;
+    color: var(--muted);
+    z-index: 100;
+    letter-spacing: 1px;
+  }
+  .statusbar span { color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">ゼロからの機械学習</div>
+    <div class="header-sub" style="margin-top:4px">Neural Network — Scratch Implementation · No Libraries</div>
+  </div>
+  <div class="header-badge">学術的実装 v1.0</div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: Controls -->
+  <div class="panel controls-panel">
+    <div class="panel-label">アーキテクチャ設定</div>
+
+    <div class="section">
+      <div class="section-title">データセット</div>
+      <label>問題タイプ</label>
+      <select id="datasetType">
+        <option value="xor">XOR問題（非線形分類）</option>
+        <option value="spiral">スパイラル（2クラス）</option>
+        <option value="circle">同心円（内外分類）</option>
+        <option value="moon">半月型（moon）</option>
+      </select>
+      <label>サンプル数 <span id="nSamplesVal" class="slider-val" style="color:var(--gold);float:right">200</span></label>
+      <input type="range" id="nSamples" min="50" max="500" value="200" step="50">
+    </div>
+
+    <div class="section">
+      <div class="section-title">ネットワーク構造</div>
+      <label>隠れ層ユニット数 <span id="hiddenVal" class="slider-val" style="color:var(--gold);float:right">8</span></label>
+      <input type="range" id="hiddenUnits" min="2" max="32" value="8" step="2">
+      <label>隠れ層数 <span id="layersVal" class="slider-val" style="color:var(--gold);float:right">2</span></label>
+      <input type="range" id="numLayers" min="1" max="4" value="2" step="1">
+      <label>活性化関数</label>
+      <select id="activation">
+        <option value="sigmoid">Sigmoid: σ(z) = 1/(1+e⁻ᶻ)</option>
+        <option value="tanh">Tanh: tanh(z)</option>
+        <option value="relu" selected>ReLU: max(0, z)</option>
+        <option value="leaky">Leaky ReLU: max(0.01z, z)</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <div class="section-title">学習パラメータ</div>
+      <label>学習率 η <span id="lrVal" class="slider-val" style="color:var(--gold);float:right">0.010</span></label>
+      <input type="range" id="learningRate" min="-3" max="0" value="-2" step="0.1">
+      <label>エポック数 <span id="epochsVal" class="slider-val" style="color:var(--gold);float:right">500</span></label>
+      <input type="range" id="epochs" min="100" max="3000" value="500" step="100">
+      <label>バッチサイズ <span id="batchVal" class="slider-val" style="color:var(--gold);float:right">Full</span></label>
+      <input type="range" id="batchSize" min="0" max="5" value="0" step="1">
+      <label>正則化 λ <span id="regVal" class="slider-val" style="color:var(--gold);float:right">0.000</span></label>
+      <input type="range" id="regularization" min="0" max="0.1" value="0" step="0.005">
+    </div>
+
+    <div class="section">
+      <div class="section-title">数式（実装の核心）</div>
+      <div class="math-block">
+        <div class="eq-label">順伝播（Forward Pass）</div>
+        <span class="math-sym">z</span> = <span class="math-sym">W</span>·<span class="math-sym">a</span> + <span class="math-sym">b</span><br>
+        <span class="math-sym">a</span> = <span class="math-fn">f</span>(<span class="math-sym">z</span>)
+      </div>
+      <div class="math-block">
+        <div class="eq-label">損失関数（Binary Cross-Entropy）</div>
+        <span class="math-sym">L</span> = −<span class="math-sym">Σ</span>[<span class="math-sym">y</span>·log(<span class="math-sym">ŷ</span>) + (1−<span class="math-sym">y</span>)·log(1−<span class="math-sym">ŷ</span>)]
+      </div>
+      <div class="math-block">
+        <div class="eq-label">逆伝播（Backprop）</div>
+        <span class="math-sym">δ</span> = <span class="math-sym">∂L/∂z</span><br>
+        <span class="math-sym">∂L/∂W</span> = <span class="math-sym">δ</span>·<span class="math-sym">aᵀ</span>
+      </div>
+      <div class="math-block">
+        <div class="eq-label">勾配降下法（更新則）</div>
+        <span class="math-sym">W</span> ← <span class="math-sym">W</span> − <span class="math-sym">η</span>·(<span class="math-sym">∂L/∂W</span> + <span class="math-sym">λW</span>)
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="trainBtn" onclick="toggleTraining()">▶ 学習開始</button>
+    <button class="btn btn-secondary" onclick="resetAll()">↺ リセット</button>
+
+    <div style="margin-top:16px">
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-name">現在エポック</div>
+          <div class="stat-val" id="epochStat">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-name">損失 Loss</div>
+          <div class="stat-val bad" id="lossStat">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-name">精度 Accuracy</div>
+          <div class="stat-val good" id="accStat">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-name">パラメータ数</div>
+          <div class="stat-val" id="paramStat">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP RIGHT: Loss Chart + Network Viz -->
+  <div class="panel chart-panel">
+    <div class="panel-label">損失関数の推移（Loss Curve）</div>
+    <canvas id="lossCanvas"></canvas>
+    <p class="annotation">※ Binary Cross-Entropy Loss — 勾配降下法により最小化</p>
+  </div>
+
+  <!-- Middle Right: Decision Boundary + Weights -->
+  <div class="panel">
+    <div class="panel-label">決定境界（Decision Boundary）</div>
+    <canvas id="boundaryCanvas"></canvas>
+    <p class="annotation">※ 色の濃さ = ネットワークの出力確率 (0→1)</p>
+  </div>
+
+  <!-- Bottom Left (in right col): Network viz -->
+  <div class="panel" style="grid-column: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); padding: 0; margin: 0;">
+    <div style="padding: 24px; background: var(--bg);">
+      <div class="panel-label">ネットワーク構造 可視化</div>
+      <canvas id="netCanvas"></canvas>
+    </div>
+    <div style="padding: 24px; background: var(--bg);">
+      <div class="panel-label">重み行列 ヒートマップ（第1層）</div>
+      <canvas id="weightCanvas"></canvas>
+      <p class="annotation" style="margin-top:6px">※ 赤=正の重み / 青=負の重み / 輝度=絶対値</p>
+      <div style="margin-top:14px">
+        <div class="panel-label">学習ログ</div>
+        <div class="log" id="logBox"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="statusbar">
+  <div>STATUS: <span id="statusText">準備完了</span></div>
+  <div>IMPL: <span>Pure JS · NumPy-free</span></div>
+  <div>ALGO: <span>SGD + Backprop</span></div>
+  <div>MATH: <span>∂L/∂W = δ·aᵀ</span></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  行列演算ユーティリティ（NumPy不使用・純粋JS実装）
+// ═══════════════════════════════════════════════════════════
+const Mat = {
+  zeros: (r, c) => Array.from({length: r}, () => new Array(c).fill(0)),
+
+  // Box-Muller変換による正規分布乱数（数学的実装）
+  randn: () => {
+    const u = Math.random() + 1e-10, v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  },
+
+  // He初期化: W ~ N(0, sqrt(2/fan_in))
+  randHe: (rows, cols, fanIn) => {
+    const std = Math.sqrt(2 / fanIn);
+    return Array.from({length: rows}, () =>
+      Array.from({length: cols}, () => Mat.randn() * std)
+    );
+  },
+
+  // 行列積 C[i][j] = Σ_k A[i][k] * B[k][j]
+  dot: (A, B) => {
+    const m = A.length, k = A[0].length, n = B[0].length;
+    const C = Mat.zeros(m, n);
+    for (let i = 0; i < m; i++)
+      for (let p = 0; p < k; p++)
+        for (let j = 0; j < n; j++)
+          C[i][j] += A[i][p] * B[p][j];
+    return C;
+  },
+
+  // 転置 B[j][i] = A[i][j]
+  T: A => Array.from({length: A[0].length}, (_, j) => A.map(row => row[j])),
+
+  // 要素ごとの演算
+  map:   (A, fn) => A.map(row => row.map(fn)),
+  addBias: (A, b) => A.map(row => row.map((v, j) => v + b[j])),
+  elMul: (A, B) => A.map((row, i) => row.map((v, j) => v * B[i][j])),
+  scale: (A, s) => A.map(row => row.map(v => v * s)),
+  sub:   (A, B) => A.map((row, i) => row.map((v, j) => v - B[i][j])),
+
+  // 列方向の平均（バイアス勾配）
+  colSum: A => {
+    const sums = new Array(A[0].length).fill(0);
+    for (const row of A) row.forEach((v, j) => sums[j] += v);
+    return sums;
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  活性化関数と微分（数式直接実装）
+// ═══════════════════════════════════════════════════════════
+const Act = {
+  sigmoid: {
+    // σ(z) = 1 / (1 + e^{-z})  ← クランプで数値安定化
+    f:  z => 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, z)))),
+    // σ'(z) = σ(z)·(1−σ(z))  ← aはf(z)を受け取る
+    df: a => a * (1 - a),
+  },
+  tanh: {
+    f:  z => Math.tanh(z),
+    df: a => 1 - a * a,
+  },
+  relu: {
+    f:  z => Math.max(0, z),
+    // ReLUの微分: z>0 なら1、それ以外は0
+    // ※ aではなくzで判定する必要があるため別途z_cacheを使用
+    df: a => a > 0 ? 1 : 0,
+  },
+  leaky: {
+    f:  z => z > 0 ? z : 0.01 * z,
+    df: a => a > 0 ? 1 : 0.01,
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  ニューラルネットワーク（完全スクラッチ実装）
+//
+//  アーキテクチャ: [2, h, h, ..., 1]
+//  - 入力層: 2次元 (x1, x2)
+//  - 隠れ層: ReLU/Tanh等
+//  - 出力層: Sigmoid (二値分類)
+// ═══════════════════════════════════════════════════════════
+class NeuralNet {
+  constructor(layerSizes, actName, lambda = 0) {
+    this.sizes  = layerSizes;
+    this.act    = Act[actName];
+    this.lambda = lambda;
+    this.L      = layerSizes.length - 1; // 層数
+
+    // He初期化で重みとバイアスを初期化
+    this.W = [];  // W[l]: shape = [layerSizes[l+1], layerSizes[l]]
+    this.b = [];  // b[l]: shape = [layerSizes[l+1]]
+    for (let l = 0; l < this.L; l++) {
+      this.W.push(Mat.randHe(layerSizes[l+1], layerSizes[l], layerSizes[l]));
+      this.b.push(new Array(layerSizes[l+1]).fill(0));
+    }
+  }
+
+  // ─── 順伝播 ───────────────────────────────────────────
+  // 入力 X: shape = [n, 2]
+  // 出力 a[L]: shape = [n, 1] (0〜1の確率)
+  forward(X) {
+    this._a = [X];  // a[0] = 入力
+    this._z = [];   // z[l] = 線形変換後の値（ReLU微分のために保存）
+
+    for (let l = 0; l < this.L; l++) {
+      const a_prev = this._a[l];
+      // z = a_prev · W[l]^T + b[l]
+      //   a_prev: [n, in]  W[l]^T: [in, out]  → z: [n, out]
+      const z = Mat.addBias(Mat.dot(a_prev, Mat.T(this.W[l])), this.b[l]);
+      this._z.push(z);
+
+      const isLast = (l === this.L - 1);
+      const fn = isLast ? Act.sigmoid.f : this.act.f;
+      this._a.push(Mat.map(z, fn));
+    }
+    return this._a[this.L];
+  }
+
+  // ─── 損失関数 ─────────────────────────────────────────
+  // L = -1/n Σ [y·log(ŷ) + (1-y)·log(1-ŷ)] + λ/2·Σw²
+  loss(X, Y) {
+    const pred = this.forward(X);
+    const n = X.length;
+    let ce = 0;
+    for (let i = 0; i < n; i++) {
+      const p = Math.max(1e-12, Math.min(1 - 1e-12, pred[i][0]));
+      ce += -(Y[i] * Math.log(p) + (1 - Y[i]) * Math.log(1 - p));
+    }
+    // L2正則化項
+    let reg = 0;
+    if (this.lambda > 0)
+      for (const Wl of this.W) for (const row of Wl) for (const w of row) reg += w * w;
+    return ce / n + 0.5 * this.lambda * reg;
+  }
+
+  // ─── 逆伝播（バックプロパゲーション）────────────────
+  // 連鎖律: ∂L/∂W[l] = δ[l]^T · a[l]
+  //         ∂L/∂b[l] = Σ_i δ[l][i]
+  //         δ[l] = (δ[l+1] · W[l+1]) ⊙ f'(z[l])
+  backward(lr) {
+    const n = this._a[0].length;
+    let delta = null;
+
+    for (let l = this.L - 1; l >= 0; l--) {
+      const isLast = (l === this.L - 1);
+
+      if (isLast) {
+        // 出力層: δ = (ŷ - y)/n
+        // Sigmoid + BCE の合成微分は綺麗に (ŷ-y) になる
+        delta = this._a[this.L].map((row, i) =>
+          [( row[0] - this._labels[i]) / n]
+        );
+      } else {
+        // 中間層: δ = (δ_next · W[l+1]) ⊙ f'(z[l])
+        // ① 上流の勾配を現在の層まで伝える
+        const dA = Mat.dot(delta, this.W[l + 1]); // [n, size[l+1]]
+        // ② 活性化関数の微分を掛ける
+        // ReLUはz>0で微分=1なのでzで判定（aで代用可）
+        delta = Mat.elMul(dA, Mat.map(this._z[l], z => this.act.df(z > 0 ? 1 : 0 <= 0 ? 0 : z)));
+        // 正確には: f'(z) をzから直接計算
+        delta = dA.map((row, i) =>
+          row.map((v, j) => v * this.act.df(this._z[l][i][j]))
+        );
+      }
+
+      // 重み勾配: ∂L/∂W[l] = δ^T · a[l]
+      const dW = Mat.dot(Mat.T(delta), this._a[l]); // [out, in]
+      const db = Mat.colSum(delta);                  // [out]
+
+      // 勾配降下法: W ← W - η·(∂L/∂W + λ·W)
+      for (let i = 0; i < this.W[l].length; i++)
+        for (let j = 0; j < this.W[l][i].length; j++)
+          this.W[l][i][j] -= lr * (dW[i][j] + this.lambda * this.W[l][i][j]);
+      for (let j = 0; j < this.b[l].length; j++)
+        this.b[l][j] -= lr * db[j];
+    }
+  }
+
+  // ─── 学習ステップ（forward → loss → backward）────────
+  train(X, Y, lr) {
+    this._labels = Y;
+    this.forward(X);
+    this.backward(lr);
+  }
+
+  // ─── 推論（単一サンプル）──────────────────────────────
+  predict(x) {
+    let a = [x];
+    for (let l = 0; l < this.L; l++) {
+      const z = this.b[l].map((bj, j) =>
+        a[0].reduce((sum, ai, i) => sum + this.W[l][j][i] * ai, bj)
+      );
+      const isLast = (l === this.L - 1);
+      const fn = isLast ? Act.sigmoid.f : this.act.f;
+      a = [z.map(fn)];
+    }
+    return a[0][0];
+  }
+
+  // ─── 精度計算 ─────────────────────────────────────────
+  accuracy(X, Y) {
+    const pred = this.forward(X);
+    return pred.filter((row, i) => (row[0] >= 0.5 ? 1 : 0) === Y[i]).length / X.length;
+  }
+
+  countParams() {
+    let p = 0;
+    for (let l = 0; l < this.L; l++)
+      p += this.W[l].length * this.W[l][0].length + this.b[l].length;
+    return p;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  データ生成（ゼロから実装）
+// ═══════════════════════════════════════════════════════════
+function generateData(type, n) {
+  const X = [], Y = [];
+  const r  = () => Math.random() * 4 - 2;
+  const rn = () => {
+    const u = Math.random() + 1e-10, v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  };
+
+  if (type === 'xor') {
+    while (X.length < n) {
+      const x1 = r(), x2 = r();
+      X.push([x1 + rn() * 0.15, x2 + rn() * 0.15]);
+      Y.push((x1 > 0) !== (x2 > 0) ? 1 : 0);
+    }
+  } else if (type === 'spiral') {
+    for (let cls = 0; cls < 2; cls++)
+      for (let i = 0; i < n / 2; i++) {
+        const t = (i / (n / 2)) * 2.5 * Math.PI + cls * Math.PI;
+        const r_ = 0.3 + (i / (n / 2)) * 1.5;
+        X.push([Math.sin(t) * r_ + rn() * 0.06, Math.cos(t) * r_ + rn() * 0.06]);
+        Y.push(cls);
+      }
+  } else if (type === 'circle') {
+    while (X.length < n) {
+      const x = r(), y = r();
+      X.push([x, y]);
+      Y.push(x * x + y * y < 1.5 ? 1 : 0);
+    }
+  } else { // moon
+    for (let i = 0; i < n / 2; i++) {
+      const a = Math.PI * i / (n / 2);
+      X.push([Math.cos(a) * 1.5 + rn() * 0.2, Math.sin(a) * 1.5 + rn() * 0.2]);
+      Y.push(0);
+    }
+    for (let i = 0; i < n / 2; i++) {
+      const a = Math.PI * i / (n / 2);
+      X.push([1.5 - Math.cos(a) * 1.5 + rn() * 0.2, 0.8 - Math.sin(a) * 1.5 + rn() * 0.2]);
+      Y.push(1);
+    }
+  }
+  return { X, Y };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI / ビジュアライゼーション
+// ═══════════════════════════════════════════════════════════
+let nn = null, data = null, lossHistory = [];
+let training = false, rafId = null;
+let currentEpoch = 0, totalEpochs = 500;
+
+function getConfig() {
+  const lr       = Math.pow(10, parseFloat(document.getElementById('learningRate').value));
+  const hidden   = parseInt(document.getElementById('hiddenUnits').value);
+  const layers   = parseInt(document.getElementById('numLayers').value);
+  const act      = document.getElementById('activation').value;
+  const epochs   = parseInt(document.getElementById('epochs').value);
+  const nSamples = parseInt(document.getElementById('nSamples').value);
+  const batchIdx = parseInt(document.getElementById('batchSize').value);
+  const lambda   = parseFloat(document.getElementById('regularization').value);
+  const dsType   = document.getElementById('datasetType').value;
+  const batchSizes = [null, 16, 32, 64, 128, 256];
+  return { lr, hidden, layers, act, epochs, nSamples, batch: batchSizes[batchIdx], lambda, dsType };
+}
+
+function resetAll() {
+  stopTraining();
+  lossHistory = [];
+  currentEpoch = 0;
+  const cfg = getConfig();
+  data = generateData(cfg.dsType, cfg.nSamples);
+  const sizes = [2, ...Array(cfg.layers).fill(cfg.hidden), 1];
+  nn = new NeuralNet(sizes, cfg.act, cfg.lambda);
+  document.getElementById('paramStat').textContent = nn.countParams();
+  document.getElementById('epochStat').textContent  = '0';
+  document.getElementById('lossStat').textContent   = '—';
+  document.getElementById('accStat').textContent    = '—';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('statusText').textContent = '初期化完了';
+  drawAll();
+}
+
+function stopTraining() {
+  training = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  const btn = document.getElementById('trainBtn');
+  btn.textContent = '▶ 学習開始';
+  btn.classList.remove('running');
+}
+
+function toggleTraining() {
+  if (training) { stopTraining(); return; }
+  if (!nn || !data) resetAll();
+  if (currentEpoch >= totalEpochs) { currentEpoch = 0; lossHistory = []; }
+  training = true;
+  totalEpochs = getConfig().epochs;
+  const btn = document.getElementById('trainBtn');
+  btn.textContent = '■ 停止';
+  btn.classList.add('running');
+  document.getElementById('statusText').textContent = '学習中...';
+  trainLoop();
+}
+
+const STEPS_PER_FRAME = 8;
+
+function trainLoop() {
+  if (!training) return;
+  const cfg = getConfig();
+
+  for (let s = 0; s < STEPS_PER_FRAME && currentEpoch < totalEpochs; s++) {
+    currentEpoch++;
+
+    // ミニバッチ or フルバッチ
+    let X = data.X, Y = data.Y;
+    if (cfg.batch) {
+      const start = Math.floor(Math.random() * Math.max(1, data.X.length - cfg.batch));
+      X = data.X.slice(start, start + cfg.batch);
+      Y = data.Y.slice(start, start + cfg.batch);
+    }
+
+    nn.train(X, Y, cfg.lr);
+
+    // NaN検出 → 自動停止
+    if (isNaN(nn.W[0][0][0])) {
+      stopTraining();
+      document.getElementById('statusText').textContent = '⚠ NaN検出 — 学習率を下げてください';
+      document.getElementById('lossStat').textContent = 'NaN';
+      addLog(currentEpoch, NaN, NaN, true);
+      drawAll();
+      return;
+    }
+
+    if (currentEpoch % 10 === 0) {
+      const l = nn.loss(data.X, data.Y);
+      const a = nn.accuracy(data.X, data.Y);
+      lossHistory.push({ epoch: currentEpoch, loss: l, acc: a });
+    }
+  }
+
+  if (lossHistory.length > 0) {
+    const last = lossHistory[lossHistory.length - 1];
+    document.getElementById('lossStat').textContent  = last.loss.toFixed(4);
+    document.getElementById('accStat').textContent   = (last.acc * 100).toFixed(1) + '%';
+    document.getElementById('epochStat').textContent = currentEpoch;
+    document.getElementById('progressBar').style.width = (currentEpoch / totalEpochs * 100) + '%';
+    if (currentEpoch % 50 === 0) addLog(currentEpoch, last.loss, last.acc);
+  }
+
+  drawAll();
+
+  if (currentEpoch < totalEpochs) {
+    rafId = requestAnimationFrame(trainLoop);
+  } else {
+    stopTraining();
+    document.getElementById('statusText').textContent = '学習完了 ✓';
+  }
+}
+
+function addLog(ep, loss, acc, isError = false) {
+  const box = document.getElementById('logBox');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  if (isError) {
+    div.innerHTML = `<span class="ep">Ep ${ep}</span><span style="color:#ff4560">⚠ NaN — 学習率を下げてください (η < 0.05 推奨)</span>`;
+  } else {
+    div.innerHTML = `<span class="ep">Ep ${ep}</span><span class="loss">L=${loss.toFixed(5)}</span><span class="acc">Acc=${(acc * 100).toFixed(1)}%</span>`;
+  }
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── ロスカーブ描画 ──────────────────────────────────────
+function drawLoss() {
+  const cv = document.getElementById('lossCanvas');
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#10101a'; ctx.fillRect(0, 0, W, H);
+
+  const pad = { l: 52, r: 20, t: 20, b: 32 };
+  const iW = W - pad.l - pad.r, iH = H - pad.t - pad.b;
+
+  // グリッド
+  ctx.strokeStyle = '#1e1e38'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = pad.t + i * iH / 5;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = pad.l + i * iW / 5;
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + iH); ctx.stroke();
+  }
+
+  if (lossHistory.length < 2) {
+    ctx.fillStyle = '#3a3860'; ctx.font = '11px Space Mono'; ctx.textAlign = 'center';
+    ctx.fillText('「学習開始」を押してください', pad.l + iW / 2, pad.t + iH / 2);
+    return;
+  }
+
+  const losses = lossHistory.map(h => h.loss).filter(v => !isNaN(v));
+  const maxL = Math.max(...losses) * 1.1 || 1;
+
+  ctx.fillStyle = '#7a7890'; ctx.font = '9px Space Mono'; ctx.textAlign = 'right';
+  for (let i = 0; i <= 5; i++) {
+    const v = maxL * (1 - i / 5);
+    ctx.fillText(v.toFixed(3), pad.l - 5, pad.t + i * iH / 5 + 3);
+  }
+  ctx.textAlign = 'left';
+
+  const ep0 = lossHistory[0].epoch;
+  const epN = totalEpochs;
+  const toX = ep => pad.l + ((ep - ep0) / (epN - ep0)) * iW;
+  const toY = l  => pad.t + (1 - l / maxL) * iH;
+
+  // 面グラデーション
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + iH);
+  grad.addColorStop(0, 'rgba(240,192,64,0.25)');
+  grad.addColorStop(1, 'rgba(240,192,64,0)');
+  ctx.beginPath();
+  ctx.moveTo(toX(lossHistory[0].epoch), pad.t + iH);
+  lossHistory.forEach(h => !isNaN(h.loss) && ctx.lineTo(toX(h.epoch), toY(h.loss)));
+  ctx.lineTo(toX(lossHistory[lossHistory.length - 1].epoch), pad.t + iH);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // 損失ライン
+  ctx.beginPath(); ctx.strokeStyle = '#f0c040'; ctx.lineWidth = 2;
+  let first = true;
+  lossHistory.forEach(h => {
+    if (isNaN(h.loss)) return;
+    const x = toX(h.epoch), y = toY(h.loss);
+    first ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    first = false;
+  });
+  ctx.stroke();
+
+  // 精度ライン
+  ctx.beginPath(); ctx.strokeStyle = '#00e396'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+  first = true;
+  lossHistory.forEach(h => {
+    const x = toX(h.epoch), y = pad.t + (1 - h.acc) * iH;
+    first ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    first = false;
+  });
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // 凡例
+  ctx.fillStyle = '#f0c040'; ctx.font = '9px Space Mono';
+  ctx.fillText('── LOSS', pad.l + 8, pad.t + 14);
+  ctx.fillStyle = '#00e396';
+  ctx.fillText('--- ACC', pad.l + 70, pad.t + 14);
+}
+
+// ── 決定境界描画 ────────────────────────────────────────
+function drawBoundary() {
+  const cv = document.getElementById('boundaryCanvas');
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#10101a'; ctx.fillRect(0, 0, W, H);
+  if (!nn || !data) return;
+
+  // ピクセルグリッドで確率を計算
+  const imgD = ctx.createImageData(W, H);
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+    const nx = (px / W) * 4 - 2;
+    const ny = (py / H) * 4 - 2;
+    const p  = nn.predict([nx, ny]);
+    const idx = (py * W + px) * 4;
+    if (p >= 0.5) {
+      imgD.data[idx]   = Math.round(p * 30);
+      imgD.data[idx+1] = Math.round(p * 160);
+      imgD.data[idx+2] = Math.round(p * 100);
+    } else {
+      imgD.data[idx]   = Math.round((1 - p) * 100);
+      imgD.data[idx+1] = Math.round((1 - p) * 30);
+      imgD.data[idx+2] = Math.round((1 - p) * 160);
+    }
+    imgD.data[idx+3] = Math.round(40 + Math.abs(p - 0.5) * 180);
+  }
+  ctx.putImageData(imgD, 0, 0);
+
+  // 座標軸
+  ctx.strokeStyle = '#2a2a4a'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+  // データ点
+  data.X.forEach((x, i) => {
+    const px = (x[0] + 2) / 4 * W;
+    const py = (x[1] + 2) / 4 * H;
+    ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = data.Y[i] === 1 ? '#00e396' : '#ff4560';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 0.8; ctx.stroke();
+  });
+}
+
+// ── ネットワーク構造描画 ─────────────────────────────────
+function drawNet() {
+  const cv = document.getElementById('netCanvas');
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#10101a'; ctx.fillRect(0, 0, W, H);
+  if (!nn) return;
+
+  const sizes = nn.sizes;
+  const L = sizes.length;
+  const maxN = Math.min(8, Math.max(...sizes));
+  const colW = W / (L + 1);
+
+  // 接続線
+  for (let l = 0; l < L - 1; l++) {
+    const x1 = colW * (l + 1), x2 = colW * (l + 2);
+    const n1 = Math.min(sizes[l], 8), n2 = Math.min(sizes[l+1], 8);
+    for (let i = 0; i < n1; i++) for (let j = 0; j < n2; j++) {
+      const y1 = H / (n1 + 1) * (i + 1), y2 = H / (n2 + 1) * (j + 1);
+      const wVal = l < nn.W.length
+        ? nn.W[l][Math.min(j, nn.W[l].length-1)][Math.min(i, nn.W[l][0].length-1)]
+        : 0;
+      const alpha = Math.min(Math.abs(wVal) * 1.5, 0.8);
+      ctx.strokeStyle = wVal > 0
+        ? `rgba(240,192,64,${alpha})`
+        : `rgba(80,160,240,${alpha})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+  }
+
+  // ノード
+  for (let l = 0; l < L; l++) {
+    const x = colW * (l + 1);
+    const n = Math.min(sizes[l], 8);
+    for (let i = 0; i < n; i++) {
+      const y = H / (n + 1) * (i + 1);
+      const g = ctx.createRadialGradient(x - 2, y - 2, 0, x, y, 8);
+      if (l === 0)     { g.addColorStop(0, '#80b0ff'); g.addColorStop(1, '#2050c0'); }
+      else if (l===L-1){ g.addColorStop(0, '#80ffb0'); g.addColorStop(1, '#00a050'); }
+      else             { g.addColorStop(0, '#f0c040'); g.addColorStop(1, '#805010'); }
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    if (sizes[l] > 8) {
+      ctx.fillStyle = '#7a7890'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+      ctx.fillText(`×${sizes[l]}`, x, H - 22);
+    }
+    ctx.fillStyle = '#3a3860'; ctx.font = '8px Space Mono'; ctx.textAlign = 'center';
+    const lbl = l === 0 ? '入力層' : l === L-1 ? '出力層' : `隠れ${l}`;
+    ctx.fillText(lbl, x, H - 6);
+  }
+}
+
+// ── 重みヒートマップ描画 ──────────────────────────────────
+function drawWeights() {
+  const cv = document.getElementById('weightCanvas');
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#10101a'; ctx.fillRect(0, 0, W, H);
+  if (!nn || !nn.W[0]) return;
+
+  const wMat = nn.W[0];
+  const rows = wMat.length, cols = wMat[0].length;
+  let maxW = 0;
+  for (const row of wMat) for (const v of row) maxW = Math.max(maxW, Math.abs(v));
+  maxW = maxW || 1;
+
+  const cellW = Math.min((W - 20) / cols, 28);
+  const cellH = Math.min((H - 30) / rows, 28);
+  const ox = (W - cols * cellW) / 2;
+  const oy = (H - 30 - rows * cellH) / 2 + 10;
+
+  for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+    const v = wMat[i][j] / maxW;
+    const r = v > 0 ? Math.round(v * 200) : 0;
+    const b = v < 0 ? Math.round(-v * 200) : 0;
+    const g = Math.round(Math.abs(v) * 40);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(ox + j * cellW + 1, oy + i * cellH + 1, cellW - 2, cellH - 2);
+  }
+
+  ctx.fillStyle = '#3a3860'; ctx.font = '9px Space Mono'; ctx.textAlign = 'left';
+  ctx.fillText(`W₁: ${rows}×${cols}`, 8, H - 6);
+}
+
+function drawAll() {
+  drawLoss();
+  drawBoundary();
+  drawNet();
+  drawWeights();
+}
+
+// ── スライダー設定 ────────────────────────────────────────
+function setupSliders() {
+  [
+    ['nSamples',       'nSamplesVal', v => v],
+    ['hiddenUnits',    'hiddenVal',   v => v],
+    ['numLayers',      'layersVal',   v => v],
+    ['epochs',         'epochsVal',   v => v],
+    ['learningRate',   'lrVal',       v => Math.pow(10, v).toFixed(4)],
+    ['batchSize',      'batchVal',    v => ['Full','16','32','64','128','256'][v]],
+    ['regularization', 'regVal',      v => parseFloat(v).toFixed(3)],
+  ].forEach(([id, valId, fmt]) => {
+    const el = document.getElementById(id);
+    const update = () => { document.getElementById(valId).textContent = fmt(el.value); };
+    el.addEventListener('input', update);
+    update();
+  });
+}
+
+// ── 初期化 ───────────────────────────────────────────────
+setupSliders();
+resetAll();
+window.addEventListener('resize', drawAll);
+</script>
+</body>
+</html>
